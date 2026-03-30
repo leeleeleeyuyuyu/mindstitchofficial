@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MindStitch | 深度思考 激发创造</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* ==========================================
+           1. 极简黑曜石美学规范 (Design Tokens)
+           ========================================== */
+        :root {
+            --bg-base: #020203;
+            --bg-surface: rgba(18, 18, 24, 0.4);
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.6);
+            --secondary: #a855f7;
+            --text-title: #ffffff;
+            --text-body: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-body);
+            font-family: 'Inter', -apple-system, "PingFang SC", sans-serif;
+            overflow-x: hidden;
+            line-height: 1.8;
+            letter-spacing: 0.02em;
+            perspective: 1000px; /* 开启全局 3D 视角 */
+        }
+
+        /* ==========================================
+           2. 动态拓扑背景与流光引擎
+           ========================================== */
+        #topo-bg { position: fixed; top: 0; left: 0; z-index: -1; width: 100%; height: 100%; opacity: 0.8; }
+        #mouseGlow {
+            position: fixed; width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.05) 40%, transparent 70%);
+            filter: blur(80px); pointer-events: none; z-index: 0; will-change: transform;
+            transition: width 0.3s, height 0.3s;
+        }
+
+        /* ==========================================
+           3. 导航与品牌
+           ========================================== */
+        nav {
+            position: fixed; top: 0; width: 100%; padding: 20px 6%;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, rgba(2,2,3,0.95) 0%, rgba(2,2,3,0) 100%);
+            backdrop-filter: blur(20px); z-index: 100;
+        }
+        .brand-container { display: flex; align-items: center; gap: 16px; transition: transform 0.3s; cursor: pointer; }
+        .brand-container:hover { transform: scale(1.05); }
+        
+        /* 品牌图标 */
+        .product-icon {
+            width: 42px; height: 42px; background: #1a1a1e; 
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .brand-name { font-weight: 800; font-size: 1.6rem; color: var(--text-title); letter-spacing: -0.5px; }
+        .version-badge {
+            background: #27272a; color: #a1a1aa; padding: 4px 12px; 
+            border-radius: 99px; font-size: 0.85rem; font-family: monospace;
+            margin-left: 8px;
+        }
+        .brand-slogan { font-weight: 800; font-size: 1.05rem; color: var(--text-title); letter-spacing: 3px; text-transform: uppercase; }
+
+        /* ==========================================
+           4. 巨幕级空间排版与渐变文本
+           ========================================== */
+        section { min-height: 100vh; padding: 180px 8% 120px; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 2; }
+        .container { max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #ffffff, #a855f7, #6366f1, #ffffff);
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 6s linear infinite;
+        }
+        @keyframes shine { to { background-position: 300% center; } }
+
+        h1 { font-size: clamp(4rem, 8vw, 7rem); font-weight: 900; line-height: 1.05; margin-bottom: 2rem; letter-spacing: -3px; }
+        h2 { font-size: clamp(2.2rem, 4vw, 3.2rem); margin-bottom: 3.5rem; font-weight: 800; color: var(--text-title); display: flex; align-items: center; gap: 16px; }
+        h2::before { content: ""; display: block; width: 8px; height: 40px; background: linear-gradient(180deg, var(--primary), var(--secondary)); border-radius: 4px; box-shadow: 0 0 15px var(--primary-glow); }
+
+        p.lead { font-size: 1.5rem; color: var(--text-muted); max-width: 900px; margin-bottom: 3rem; line-height: 1.7; font-weight: 300; }
+
+        /* ==========================================
+           5. 3D 交互悬浮卡片 (Tilt Effect)
+           ========================================== */
+        .tilt-card {
+            background: rgba(20, 20, 28, 0.4); border: 1px solid var(--border-glass);
+            border-radius: 24px; margin-bottom: 1.5rem; backdrop-filter: blur(20px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            transform-style: preserve-3d; /* 维持子元素 3D 深度 */
+            transition: border-color 0.4s, background 0.4s;
+            position: relative; overflow: hidden;
+        }
+        /* 卡片内部的高光追随层 */
+        .tilt-card::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(255,255,255,0.06), transparent 40%);
+            z-index: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        .tilt-card:hover::before { opacity: 1; }
+        .tilt-card:hover { border-color: rgba(99, 102, 241, 0.5); }
+
+        .logic-header {
+            padding: 30px 40px; cursor: pointer; display: flex; justify-content: space-between;
+            align-items: center; font-size: 1.4rem; font-weight: 700; color: var(--text-title);
+            transform: translateZ(30px); /* 3D 浮出文字 */
+            position: relative; z-index: 1;
+        }
+        .logic-header i { transition: transform 0.5s var(--ease-elastic); }
+
+        .logic-content-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.6s var(--ease-out-expo); transform: translateZ(20px); position: relative; z-index: 1; }
+        .logic-body { overflow: hidden; }
+        .logic-inner { padding: 0 40px 35px 40px; font-size: 1.15rem; color: var(--text-muted); }
+
+        .tilt-card.active { border-color: var(--primary); background: rgba(99, 102, 241, 0.08); box-shadow: 0 20px 50px rgba(99,102,241,0.15); }
+        .tilt-card.active .logic-content-wrapper { grid-template-rows: 1fr; }
+        .tilt-card.active .logic-header i { transform: rotate(180deg) scale(1.2); color: var(--primary); filter: drop-shadow(0 0 8px var(--primary)); }
+
+        /* ==========================================
+           6. 图像框架与网格系统
+           ========================================== */
+        .img-frame {
+            width: 100%; max-height: 50vh;
+            background: #000; border: 1px solid var(--border-glass);
+            border-radius: 16px; margin: 30px 0; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6); position: relative;
+            transform: translateZ(40px); /* 在 3D 卡片中浮出更高 */
+        }
+        .img-frame::before { content: "Loading Visuals..."; position: absolute; color: var(--text-muted); font-family: monospace; z-index: 0; letter-spacing: 2px; }
+        .img-frame img { width: 100%; height: 100%; max-height: 50vh; object-fit: contain; transition: transform 0.8s var(--ease-out-expo), filter 0.8s; position: relative; z-index: 1; filter: brightness(0.9); }
+        .tilt-card:hover .img-frame img { transform: scale(1.02); filter: brightness(1.05); }
+
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2.5rem; margin-bottom: 3rem; }
+        .info-card {
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);
+            padding: 45px; border-radius: 28px; backdrop-filter: blur(10px);
+            transform-style: preserve-3d;
+        }
+        .info-card h3 { color: var(--text-title); font-size: 1.6rem; margin-bottom: 15px; transform: translateZ(30px); }
+        .info-card p { transform: translateZ(10px); color: var(--text-muted); }
+
+        /* ==========================================
+           7. 磁性按钮 (Magnetic UI)
+           ========================================== */
+        .btn-group { display: flex; gap: 20px; }
+        .btn {
+            padding: 16px 40px; border-radius: 16px; font-weight: 800; text-decoration: none; font-size: 1.1rem;
+            display: inline-flex; align-items: center; gap: 12px; transition: 0.2s; position: relative; overflow: hidden;
+        }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; box-shadow: 0 8px 30px var(--primary-glow); border: none; }
+        .btn-outline { border: 1px solid var(--border-glass); color: var(--text-title); background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); }
+        .btn::after { content: ""; position: absolute; top: 0; left: -100%; width: 50%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent); transform: skewX(-20deg); transition: 0.5s; }
+        .btn:hover::after { left: 150%; }
+
+        /* ==========================================
+           8. 北极星指标发光引擎
+           ========================================== */
+        .metric-box {
+            text-align: center; padding: 120px 5%; border-radius: 40px;
+            background: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.15) 0%, rgba(2,2,3,1) 70%);
+            border: 1px solid rgba(99, 102, 241, 0.3); position: relative; overflow: hidden;
+        }
+        .metric-value {
+            font-size: clamp(4rem, 10vw, 8rem); font-weight: 900;
+            background: linear-gradient(180deg, #ffffff, #6366f1); -webkit-background-clip: text; color: transparent;
+            text-shadow: 0 20px 60px var(--primary-glow); line-height: 1; margin-bottom: 20px;
+            animation: float 4s ease-in-out infinite;
+        }
+        @keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0); } }
+
+        /* ==========================================
+           9. 深度景深滚动揭示 (Blur & Scale Reveal)
+           ========================================== */
+        .reveal { opacity: 0; transform: translateY(60px) scale(0.95); filter: blur(10px); transition: 1.2s var(--ease-out-expo); }
+        .reveal.active { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    </style>
+</head>
+<body>
+
+    <canvas id="topo-bg"></canvas>
+    <div id="mouseGlow"></div>
+
+    <nav>
+        <div class="brand-container">
+            <div class="product-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="10" y1="18" x2="10" y2="8"></line>
+                    <path d="M10 13c3 0 5 2 5 5"></path>
+                    <circle cx="10" cy="8" r="2" fill="none"></circle>
+                    <circle cx="15" cy="18" r="2" fill="none"></circle>
+                </svg>
+            </div>
+            <span class="brand-name">MindStitch</span>
+            <span class="version-badge">V2.0.26</span>
+        </div>
+        <div class="brand-slogan">深度思考 激发创造</div>
+    </nav>
+
+    <section>
+        <div class="container reveal">
+            <h1>开启你的<br><span class="gradient-text">深度思考之旅</span></h1>
+            <p class="lead">MindStitch 是一款专注于激发个人创造潜能的思考工具。当用户产生碎片化灵感，但尚未清晰如何落地执行时，可以与探讨并得出结果。我们拒绝平庸的自动化，致力于激发属于你的创造力。</p>
+            <div class="btn-group">
+                <a href="https://mind-stitch.vercel.app/" class="btn btn-primary magnet-btn" target="_blank"><i data-lucide="rocket"></i> 体验产品</a>
+                <a href="https://github.com/leeleeleeyuyuyu/MindStitch" class="btn btn-outline magnet-btn" target="_blank"><i data-lucide="github"></i> GitHub 仓库</a>
+            </div>
+
+            <div class="img-frame tilt-card" style="margin-top: 80px;">
+                <img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img1.jpg" alt="主界面" onerror="this.style.opacity='0'">
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="container reveal">
+            <h2>一、立意背景：对抗认知的荒芜</h2>
+
+            <div class="tilt-card logic-card active">
+                <div class="logic-header">1. 用户习惯：从被动接收到主动创造 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>创作者类型的用户在许多场景下需要的是高质量的深度打磨，而非初级的模板生成。目前的对话机器人倾向于提供标准的完整答案，这让用户养成了外包思考的习惯，而非融合个人想法的创造。</p>
+                        <p style="margin-top:20px;">真正的专业用户拥有自己的想法和素材，他们需要的不是凭空生造，而是协助完成高质量的跨越。实证研究表明，对于顶尖工作者，工具的关键价值在于接管常规执行，作为思维的加速器。</p>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card">
+                <div class="logic-header">2. 市场空档：填补创意辅助的空白 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>技术趋势正由提效工具向可自主创造价值的智能体转变。虽然目前的普及度很高，但大部分用户仍将其用于处理会议纪要等琐碎事务。在未来，利用进行高价值创作将成为核心竞争力的来源。</p>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card">
+                <div class="logic-header">3. 社会问题：抵御认知卸载的潜在风险 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>过度依赖工具会减轻大脑内部认知负荷，但也可能导致深度思考和批判性思维能力逐渐下滑。监测发现，长期依赖辅助会导致大脑在创意和决策区域的连通性显著降低，损害认知的原因不在于使用本身，而在于被动的依赖。</p>
+                    </div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="container reveal">
+            <h2>二、产品用户定位与场景</h2>
+
+            <div class="grid-3">
+                <div class="tilt-card info-card">
+                    <h3 style="color:var(--accent-blue)">灵感孤岛状态者</h3>
+                    <p>脑中有高价值碎片如直觉、草图、关键词，但无法凭空将其组织成严密逻辑方案的人。</p>
+                </div>
+                <div class="tilt-card info-card">
+                    <h3 class="gradient-text">内容主权维护者</h3>
+                    <p>极度抗拒洗稿式文案，追求原创和个人态度，不希望风格被算法稀释的人。</p>
+                </div>
+                <div class="tilt-card info-card">
+                    <h3 style="color:var(--accent-red)">知识内化渴求者</h3>
+                    <p>不满足于获取标准答案，希望在推导过程中真正理解本质、形成肌肉记忆的人。</p>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card active">
+                <div class="logic-header">场景 A：灵感捕获与逻辑催化 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>当用户产生新颖但模糊的创意时，通过灵魂锚点锁定初始灵感，在苏格拉底反问引导下，将一个念头催化为逻辑严密的架构图。</p>
+                        <div class="img-frame"><img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img5.jpg" alt="场景A" onerror="this.style.opacity='0'"></div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card">
+                <div class="logic-header">场景 B：碎片缝合与深度理解 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>面对大量素材和草图，利用增量缝合技术将用户原话与逻辑实时对齐并缝合，将碎片信息真正缝合为知识资产。</p>
+                        <div class="img-frame"><img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img3.jpg" alt="场景B" onerror="this.style.opacity='0'"></div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card">
+                <div class="logic-header">场景 C：复杂决策与逆向挑战 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>当用户面临多方冲突的抉择时，通过逆向挑战维度的强制质询，在右侧拓扑图中可视化呈现矛盾节点，辅助高质量决策。</p>
+                        <div class="img-frame"><img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img4.jpg" alt="场景C" onerror="this.style.opacity='0'"></div>
+                    </div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <div class="container reveal">
+            <h2>三、核心功能详情</h2>
+
+            <div class="tilt-card logic-card active">
+                <div class="logic-header">灵魂锚点 (Soul Anchor) <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>锁定用户输入为不可篡改的核心，提供高对比度显示，捍卫原创主权，确保意图不被稀释。</p>
+                        <div class="img-frame"><img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img2.jpg" alt="灵魂锚点" onerror="this.style.opacity='0'"></div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card active">
+                <div class="logic-header">苏格拉底式反问引导 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>系统化提供深度深挖、水平碰撞、逆向挑战，拦截直觉思维捷径，引导结构化思考。</p>
+                        <div class="img-frame"><img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img6.jpg" alt="反问引导" onerror="this.style.opacity='0'"></div>
+                    </div></div>
+                </div>
+            </div>
+
+            <div class="tilt-card logic-card active">
+                <div class="logic-header">可视化逻辑结晶 <i data-lucide="chevron-down"></i></div>
+                <div class="logic-content-wrapper">
+                    <div class="logic-body"><div class="logic-inner">
+                        <p>利用金字塔拓扑图实时厘清碎片想法之间的关联，确保思维的严密性与逻辑溯源。</p>
+                        <div class="img-frame"><img src="https://lf3-static.bytednsdoc.com/obj/eden-cn/llslfcpeh7bfps/img7.jpg" alt="逻辑结晶" onerror="this.style.opacity='0'"></div>
+                    </div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section style="padding-bottom: 200px;">
+        <div class="container reveal">
+            <div class="metric-box tilt-card">
+                <div class="metric-value">想法膨胀率</div>
+                <p style="font-size: 1.8rem; color: var(--text-title); margin-bottom: 1rem; transform: translateZ(30px);">最终方案字符数 / 用户初始输入字符数</p>
+                <p style="font-size: 1.2rem; color: var(--text-muted); max-width: 700px; margin: 0 auto; transform: translateZ(20px);">衡量引擎激发深层思考、补齐逻辑的核心效能。我们不追求结果生成的快，只追求思维生长的深。</p>
+            </div>
+        </div>
+    </section>
+
+    <footer style="padding: 60px 5%; text-align: center; border-top: 1px solid var(--border-glass);">
+        <p style="font-size: 1.2rem; font-weight: 800; color: var(--text-title); letter-spacing: 2px;">深度思考 激发创造</p>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 10px;">MindStitch 思考引擎</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // 1. 完美折叠面板交互
+        document.querySelectorAll('.logic-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const card = header.closest('.logic-card');
+                card.classList.toggle('active');
+            });
+        });
+
+        // 2. 电影级滚动揭示引擎
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+
+        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+        // 3. 全局鼠标位置记录 (用于高光追随)
+        document.querySelectorAll('.tilt-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // 4. 磁性按钮交互
+        document.querySelectorAll('.magnet-btn').forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = (e.clientX - rect.left - rect.width / 2) * 0.2;
+                const y = (e.clientY - rect.top - rect.height / 2) * 0.2;
+                btn.style.transform = `translate(${x}px, ${y}px) scale(1.05)`;
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = `translate(0px, 0px) scale(1)`;
+            });
+        });
+
+        // 5. 3D 悬浮倾斜物理引擎
+        document.querySelectorAll('.tilt-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = ((y - centerY) / centerY) * -3; 
+                const rotateY = ((x - centerX) / centerX) * 3;
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.01, 1.01, 1.01)`;
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+            });
+        });
+
+        // 6. 具有排斥力的智能动态拓扑背景网络
+        const canvas = document.getElementById('topo-bg');
+        const ctx = canvas.getContext('2d');
+        let nodes = [];
+        let mouse = { x: null, y: null };
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            nodes = [];
+            const nodeCount = window.innerWidth > 768 ? 90 : 40;
+            for (let i = 0; i < nodeCount; i++) {
+                nodes.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.6,
+                    vy: (Math.random() - 0.5) * 0.6,
+                    radius: Math.random() * 2 + 1.5
+                });
+            }
+        }
+
+        function drawTopology() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#6366f1';
+            ctx.strokeStyle = '#6366f1';
+
+            nodes.forEach((n, i) => {
+                n.x += n.vx; n.y += n.vy;
+                if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
+                if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
+
+                if (mouse.x != null) {
+                    let dx = mouse.x - n.x;
+                    let dy = mouse.y - n.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 150) {
+                        const forceDirectionX = dx / dist;
+                        const forceDirectionY = dy / dist;
+                        const force = (150 - dist) / 150;
+                        n.x -= forceDirectionX * force * 2;
+                        n.y -= forceDirectionY * force * 2;
+                    }
+                }
+
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius, 0, Math.PI * 2);
+                let distToMouse = Math.hypot(mouse.x - n.x, mouse.y - n.y);
+                ctx.globalAlpha = distToMouse < 200 ? 0.8 : 0.3;
+                ctx.fill();
+
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const m = nodes[j];
+                    const dist = Math.hypot(n.x - m.x, n.y - m.y);
+                    if (dist < 180) {
+                        ctx.beginPath();
+                        ctx.moveTo(n.x, n.y);
+                        ctx.lineTo(m.x, m.y);
+
+                        let distLineToMouse = Math.hypot(mouse.x - (n.x+m.x)/2, mouse.y - (n.y+m.y)/2);
+                        let baseAlpha = (1 - dist / 180) * 0.25;
+                        ctx.globalAlpha = distLineToMouse < 200 ? baseAlpha * 2.5 : baseAlpha;
+
+                        ctx.stroke();
+                    }
+                }
+            });
+            requestAnimationFrame(drawTopology);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+        drawTopology();
+
+        // 7. 全局鼠标流光
+        const glow = document.getElementById('mouseGlow');
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            requestAnimationFrame(() => {
+                glow.style.transform = `translate(${e.clientX - 300}px, ${e.clientY - 300}px)`;
+            });
+        });
+        document.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+    </script>
+</body>
+</html>
